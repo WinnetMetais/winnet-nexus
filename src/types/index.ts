@@ -19,8 +19,10 @@ export interface Cliente {
 export interface ItemOrcamento {
   id: string;
   orcamento_id: string;
+  codigo?: string;
   descricao: string;
   quantidade: number;
+  unidade?: string;
   valor_unitario: number;
   total: number;
   created_at: string;
@@ -33,6 +35,13 @@ export interface Orcamento {
   status: string;
   data_vencimento: string;
   observacoes?: string;
+  numero_orcamento?: string;
+  solicitado_por?: string;
+  desconto_percentual?: number;
+  subtotal?: number;
+  forma_pagamento?: string;
+  prazo_entrega?: string;
+  garantia?: string;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -101,9 +110,18 @@ export interface CreateOrcamento {
   valor_total: number;
   data_vencimento: string;
   observacoes?: string;
+  numero_orcamento?: string;
+  solicitado_por?: string;
+  desconto_percentual?: number;
+  subtotal?: number;
+  forma_pagamento?: string;
+  prazo_entrega?: string;
+  garantia?: string;
   itens: {
+    codigo?: string;
     descricao: string;
     quantidade: number;
+    unidade?: string;
     valor_unitario: number;
   }[];
 }
