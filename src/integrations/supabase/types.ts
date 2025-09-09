@@ -14,13 +14,263 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clientes: {
+        Row: {
+          created_at: string | null
+          email: string
+          empresa: string | null
+          id: string
+          nome: string
+          telefone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          empresa?: string | null
+          id?: string
+          nome: string
+          telefone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          empresa?: string | null
+          id?: string
+          nome?: string
+          telefone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      itens_orcamento: {
+        Row: {
+          created_at: string | null
+          descricao: string
+          id: string
+          orcamento_id: string | null
+          quantidade: number | null
+          total: number | null
+          valor_unitario: number
+        }
+        Insert: {
+          created_at?: string | null
+          descricao: string
+          id?: string
+          orcamento_id?: string | null
+          quantidade?: number | null
+          total?: number | null
+          valor_unitario: number
+        }
+        Update: {
+          created_at?: string | null
+          descricao?: string
+          id?: string
+          orcamento_id?: string | null
+          quantidade?: number | null
+          total?: number | null
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itens_orcamento_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lancamentos_financeiros: {
+        Row: {
+          categoria: string | null
+          created_at: string | null
+          created_by: string | null
+          data_lancamento: string | null
+          descricao: string
+          id: string
+          status: string | null
+          tipo: string
+          valor: number
+          venda_id: string | null
+        }
+        Insert: {
+          categoria?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_lancamento?: string | null
+          descricao: string
+          id?: string
+          status?: string | null
+          tipo: string
+          valor: number
+          venda_id?: string | null
+        }
+        Update: {
+          categoria?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_lancamento?: string | null
+          descricao?: string
+          id?: string
+          status?: string | null
+          tipo?: string
+          valor?: number
+          venda_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lancamentos_financeiros_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lancamentos_financeiros_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
+            referencedRelation: "vendas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orcamentos: {
+        Row: {
+          cliente_id: string | null
+          created_at: string | null
+          created_by: string | null
+          data_vencimento: string
+          id: string
+          observacoes: string | null
+          status: string | null
+          updated_at: string | null
+          valor_total: number
+        }
+        Insert: {
+          cliente_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_vencimento: string
+          id?: string
+          observacoes?: string | null
+          status?: string | null
+          updated_at?: string | null
+          valor_total?: number
+        }
+        Update: {
+          cliente_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          data_vencimento?: string
+          id?: string
+          observacoes?: string | null
+          status?: string | null
+          updated_at?: string | null
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orcamentos_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orcamentos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      usuarios: {
+        Row: {
+          ativo: boolean | null
+          created_at: string | null
+          email: string
+          id: string
+          nome: string
+          role: string | null
+        }
+        Insert: {
+          ativo?: boolean | null
+          created_at?: string | null
+          email: string
+          id: string
+          nome: string
+          role?: string | null
+        }
+        Update: {
+          ativo?: boolean | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          nome?: string
+          role?: string | null
+        }
+        Relationships: []
+      }
+      vendas: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          data_venda: string | null
+          forma_pagamento: string | null
+          id: string
+          orcamento_id: string | null
+          status: string | null
+          valor_total: number
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          data_venda?: string | null
+          forma_pagamento?: string | null
+          id?: string
+          orcamento_id?: string | null
+          status?: string | null
+          valor_total: number
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          data_venda?: string | null
+          forma_pagamento?: string | null
+          id?: string
+          orcamento_id?: string | null
+          status?: string | null
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendas_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendas_orcamento_id_fkey"
+            columns: ["orcamento_id"]
+            isOneToOne: false
+            referencedRelation: "orcamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { user_id: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
