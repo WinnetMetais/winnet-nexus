@@ -5,6 +5,13 @@ export interface Cliente {
   email: string;
   telefone?: string;
   empresa?: string;
+  endereco?: string;
+  cidade?: string;
+  estado?: string;
+  cep?: string;
+  origem_lead?: string;
+  status?: string;
+  observacoes?: string;
   created_at: string;
   updated_at: string;
 }
@@ -80,6 +87,13 @@ export interface CreateCliente {
   email: string;
   telefone?: string;
   empresa?: string;
+  endereco?: string;
+  cidade?: string;
+  estado?: string;
+  cep?: string;
+  origem_lead?: string;
+  status?: string;
+  observacoes?: string;
 }
 
 export interface CreateOrcamento {

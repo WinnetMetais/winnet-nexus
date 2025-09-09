@@ -52,6 +52,8 @@ import {
   useUsuarios,
   useNotificacoes 
 } from '@/hooks/useCRM';
+import { ClienteFormModal } from '@/components/ClienteFormModal';
+import { OrcamentoFormModal } from '@/components/OrcamentoFormModal';
 import { Navigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -62,8 +64,8 @@ const WinnetCRM: React.FC = () => {
   const { user, usuario, signOut, loading: authLoading } = useAuth();
   
   // Data hooks with realtime
-  const { clientes, loading: loadingClientes, adicionarCliente } = useClientes();
-  const { orcamentos, loading: loadingOrcamentos, aprovarOrcamento, rejeitarOrcamento } = useOrcamentos();
+  const { clientes, loading: loadingClientes, adicionarCliente, atualizarCliente, deletarCliente } = useClientes();
+  const { orcamentos, loading: loadingOrcamentos, aprovarOrcamento, rejeitarOrcamento, adicionarOrcamento } = useOrcamentos();
   const { vendas, loading: loadingVendas } = useVendas();
   const { lancamentos, loading: loadingLancamentos } = useLancamentosFinanceiros();
   const { usuarios, loading: loadingUsuarios, toggleAtivo, canManageUsers } = useUsuarios();
@@ -558,10 +560,7 @@ const WinnetCRM: React.FC = () => {
                       <CardTitle>Clientes ({clientes.length})</CardTitle>
                       <CardDescription>Gerencie seus clientes</CardDescription>
                     </div>
-                    <Button className="hover-scale">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Novo Cliente
-                    </Button>
+                    <ClienteFormModal onSubmit={adicionarCliente} />
                   </CardHeader>
                   <CardContent>
                     {loadingClientes ? (
@@ -612,10 +611,7 @@ const WinnetCRM: React.FC = () => {
                       <div className="text-center py-12">
                         <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                         <p className="text-muted-foreground">Nenhum cliente encontrado</p>
-                        <Button className="mt-4 hover-scale">
-                          <Plus className="h-4 w-4 mr-2" />
-                          Adicionar Primeiro Cliente
-                        </Button>
+                        <ClienteFormModal onSubmit={adicionarCliente} />
                       </div>
                     )}
                   </CardContent>
@@ -638,10 +634,7 @@ const WinnetCRM: React.FC = () => {
                         Gerencie seus orçamentos • {orcamentosPendentes} pendentes
                       </CardDescription>
                     </div>
-                    <Button className="hover-scale">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Novo Orçamento
-                    </Button>
+                    <OrcamentoFormModal clientes={clientes} onSubmit={adicionarOrcamento} />
                   </CardHeader>
                   <CardContent>
                     {loadingOrcamentos ? (
@@ -734,10 +727,7 @@ const WinnetCRM: React.FC = () => {
                       <div className="text-center py-12">
                         <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                         <p className="text-muted-foreground">Nenhum orçamento encontrado</p>
-                        <Button className="mt-4 hover-scale">
-                          <Plus className="h-4 w-4 mr-2" />
-                          Criar Primeiro Orçamento
-                        </Button>
+                        <OrcamentoFormModal clientes={clientes} onSubmit={adicionarOrcamento} />
                       </div>
                     )}
                   </CardContent>

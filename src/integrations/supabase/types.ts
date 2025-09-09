@@ -16,29 +16,50 @@ export type Database = {
     Tables: {
       clientes: {
         Row: {
+          cep: string | null
+          cidade: string | null
           created_at: string | null
           email: string
           empresa: string | null
+          endereco: string | null
+          estado: string | null
           id: string
           nome: string
+          observacoes: string | null
+          origem_lead: string | null
+          status: string | null
           telefone: string | null
           updated_at: string | null
         }
         Insert: {
+          cep?: string | null
+          cidade?: string | null
           created_at?: string | null
           email: string
           empresa?: string | null
+          endereco?: string | null
+          estado?: string | null
           id?: string
           nome: string
+          observacoes?: string | null
+          origem_lead?: string | null
+          status?: string | null
           telefone?: string | null
           updated_at?: string | null
         }
         Update: {
+          cep?: string | null
+          cidade?: string | null
           created_at?: string | null
           email?: string
           empresa?: string | null
+          endereco?: string | null
+          estado?: string | null
           id?: string
           nome?: string
+          observacoes?: string | null
+          origem_lead?: string | null
+          status?: string | null
           telefone?: string | null
           updated_at?: string | null
         }
