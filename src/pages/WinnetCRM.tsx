@@ -49,7 +49,8 @@ import {
   useOrcamentos, 
   useVendas, 
   useLancamentosFinanceiros, 
-  useUsuarios 
+  useUsuarios,
+  useNotificacoes 
 } from '@/hooks/useCRM';
 import { Navigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';

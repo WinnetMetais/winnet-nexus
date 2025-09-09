@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import type { 
   Cliente, 
   Orcamento, 
@@ -11,6 +12,15 @@ import type {
   CreateCliente,
   CreateOrcamento 
 } from '@/types';
+
+// Notification interface
+export interface Notificacao {
+  id: string;
+  user_id: string;
+  mensagem: string;
+  lida: boolean;
+  created_at: string;
+}
 
 // Auth Hook
 export const useAuth = () => {
@@ -61,7 +71,11 @@ export const useAuth = () => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      
       if (error) throw error;
       
       toast({
@@ -89,7 +103,9 @@ export const useAuth = () => {
         password,
         options: {
           emailRedirectTo: redirectUrl,
-          data: { nome }
+          data: {
+            nome,
+          }
         }
       });
       
@@ -143,7 +159,126 @@ export const useAuth = () => {
   };
 };
 
-// Hook para Clientes (CRUD + Realtime)
+// Notifications Hook
+export const useNotificacoes = (userId?: string) => {
+  const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
+    // Fetch initial notifications
+    const fetchNotificacoes = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('notificacoes')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        if (error) throw error;
+        
+        setNotificacoes(data || []);
+        setUnreadCount(data?.filter(n => !n.lida).length || 0);
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNotificacoes();
+
+    // Set up real-time subscription
+    const channel = supabase
+      .channel('notificacoes-channel')
+      .on('postgres_changes', 
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'notificacoes',
+          filter: `user_id=eq.${userId}`
+        }, 
+        (payload) => {
+          const newNotification = payload.new as Notificacao;
+          setNotificacoes(prev => [newNotification, ...prev]);
+          setUnreadCount(prev => prev + 1);
+          
+          // Show toast notification using sonner
+          toast(newNotification.mensagem, {
+            duration: 5000,
+          });
+        }
+      )
+      .on('postgres_changes',
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'notificacoes',
+          filter: `user_id=eq.${userId}`
+        },
+        (payload) => {
+          const updatedNotification = payload.new as Notificacao;
+          setNotificacoes(prev => 
+            prev.map(n => n.id === updatedNotification.id ? updatedNotification : n)
+          );
+          if (updatedNotification.lida) {
+            setUnreadCount(prev => Math.max(0, prev - 1));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
+
+  const marcarComoLida = async (notificationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('notificacoes')
+        .update({ lida: true })
+        .eq('id', notificationId);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const marcarTodasComoLidas = async () => {
+    if (!userId) return;
+    
+    try {
+      const { error } = await supabase
+        .from('notificacoes')
+        .update({ lida: true })
+        .eq('user_id', userId)
+        .eq('lida', false);
+
+      if (error) throw error;
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('Error marking all notifications as read:', error);
+    }
+  };
+
+  return {
+    notificacoes,
+    loading,
+    unreadCount,
+    marcarComoLida,
+    marcarTodasComoLidas,
+  };
+};
+
+// Hook para Clientes
 export const useClientes = () => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,75 +292,67 @@ export const useClientes = () => {
           .from('clientes')
           .select('*')
           .order('created_at', { ascending: false });
-        
+
         if (error) throw error;
         setClientes(data || []);
-      } catch (error: any) {
-        console.error('Error fetching clientes:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Erro',
-          description: 'Erro ao carregar clientes.',
-        });
+      } catch (error) {
+        console.error('Error fetching clients:', error);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchClientes();
 
-    // Realtime: Inserts/Updates/Deletes
+    // Real-time subscription
     const channel = supabase
-      .channel('clientes-changes')
+      .channel('clientes-channel')
       .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'clientes' }, 
+        { event: 'INSERT', schema: 'public', table: 'clientes' }, 
         (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setClientes(prev => [payload.new as Cliente, ...prev]);
-            toast({
-              title: 'Novo cliente',
-              description: `Cliente ${(payload.new as Cliente).nome} foi adicionado.`,
-            });
-          }
-          if (payload.eventType === 'UPDATE') {
-            setClientes(prev => prev.map(c => 
-              c.id === payload.new.id ? payload.new as Cliente : c
-            ));
-          }
-          if (payload.eventType === 'DELETE') {
-            setClientes(prev => prev.filter(c => c.id !== payload.old.id));
-          }
+          setClientes(prev => [payload.new as Cliente, ...prev]);
+          toast({ title: 'Novo cliente adicionado!' });
+        }
+      )
+      .on('postgres_changes', 
+        { event: 'UPDATE', schema: 'public', table: 'clientes' }, 
+        (payload) => {
+          setClientes(prev => prev.map(c => c.id === payload.new.id ? payload.new as Cliente : c));
+          toast({ title: 'Cliente atualizado!' });
+        }
+      )
+      .on('postgres_changes', 
+        { event: 'DELETE', schema: 'public', table: 'clientes' }, 
+        (payload) => {
+          setClientes(prev => prev.filter(c => c.id !== payload.old.id));
+          toast({ title: 'Cliente removido!' });
         }
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [toast]);
 
   const adicionarCliente = async (cliente: CreateCliente) => {
     try {
       const { data, error } = await supabase
         .from('clientes')
-        .insert([cliente])
+        .insert(cliente)
         .select()
         .single();
-      
+
       if (error) throw error;
-      
-      toast({
-        title: 'Sucesso',
-        description: 'Cliente adicionado com sucesso!',
-      });
-      
       return data;
     } catch (error: any) {
-      console.error('Error adding cliente:', error);
+      console.error('Error adding client:', error);
       toast({
+        title: 'Erro ao adicionar cliente',
+        description: error.message,
         variant: 'destructive',
-        title: 'Erro',
-        description: 'Erro ao adicionar cliente.',
       });
-      return null;
+      throw error;
     }
   };
 
@@ -235,20 +362,16 @@ export const useClientes = () => {
         .from('clientes')
         .update(updates)
         .eq('id', id);
-      
+
       if (error) throw error;
-      
-      toast({
-        title: 'Sucesso',
-        description: 'Cliente atualizado com sucesso!',
-      });
     } catch (error: any) {
-      console.error('Error updating cliente:', error);
+      console.error('Error updating client:', error);
       toast({
+        title: 'Erro ao atualizar cliente',
+        description: error.message,
         variant: 'destructive',
-        title: 'Erro',
-        description: 'Erro ao atualizar cliente.',
       });
+      throw error;
     }
   };
 
@@ -258,165 +381,284 @@ export const useClientes = () => {
         .from('clientes')
         .delete()
         .eq('id', id);
-      
+
       if (error) throw error;
-      
-      toast({
-        title: 'Sucesso',
-        description: 'Cliente removido com sucesso!',
-      });
     } catch (error: any) {
-      console.error('Error deleting cliente:', error);
+      console.error('Error deleting client:', error);
       toast({
+        title: 'Erro ao deletar cliente',
+        description: error.message,
         variant: 'destructive',
-        title: 'Erro',
-        description: 'Erro ao remover cliente.',
       });
+      throw error;
     }
   };
 
-  return { clientes, loading, adicionarCliente, atualizarCliente, deletarCliente };
+  return { 
+    clientes, 
+    loading, 
+    adicionarCliente, 
+    atualizarCliente, 
+    deletarCliente 
+  };
 };
 
-// Hook para Orçamentos (com join para cliente e itens)
+// Hook para Orçamentos
 export const useOrcamentos = () => {
   const [orcamentos, setOrcamentos] = useState<Orcamento[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  const { user } = useAuth();
-
-  const fetchOrcamentos = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('orcamentos')
-        .select(`
-          *,
-          clientes(nome, email),
-          itens_orcamento(descricao, quantidade, valor_unitario, total)
-        `)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      setOrcamentos(data || []);
-    } catch (error: any) {
-      console.error('Error fetching orcamentos:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Erro',
-        description: 'Erro ao carregar orçamentos.',
-      });
-    }
-  }, [toast]);
 
   useEffect(() => {
-    fetchOrcamentos();
-    setLoading(false);
+    const fetchOrcamentos = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('orcamentos')
+          .select(`
+            *,
+            clientes(nome, email),
+            itens_orcamento(id, descricao, quantidade, valor_unitario, total)
+          `)
+          .order('created_at', { ascending: false });
 
+        if (error) throw error;
+        setOrcamentos(data || []);
+      } catch (error) {
+        console.error('Error fetching budgets:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrcamentos();
+
+    // Set up real-time subscription with enhanced notifications
     const channel = supabase
-      .channel('orcamentos-changes')
+      .channel('orcamentos-channel')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'orcamentos' }, 
         (payload) => {
-          fetchOrcamentos(); // Refetch para joins complexos
-          
-          if (payload.eventType === 'UPDATE' && payload.new.status === 'aprovado') {
-            toast({
-              title: '🎉 Orçamento Aprovado!',
-              description: 'Venda e lançamento financeiro foram criados automaticamente.',
-            });
+          if (payload.eventType === 'INSERT') {
+            fetchOrcamentos(); // Refetch for joins
+            toast({ title: 'Novo orçamento criado!' });
+          } else if (payload.eventType === 'UPDATE') {
+            const updatedOrcamento = payload.new as Orcamento;
+            fetchOrcamentos(); // Refetch for joins
+            
+            // Show specific toast for status changes
+            if (payload.old.status !== updatedOrcamento.status) {
+              if (updatedOrcamento.status === 'aprovado') {
+                toast({ title: 'Orçamento aprovado! Venda criada automaticamente.' });
+              } else if (updatedOrcamento.status === 'rejeitado') {
+                toast({ title: 'Orçamento rejeitado.', variant: 'destructive' });
+              }
+            }
+          } else if (payload.eventType === 'DELETE') {
+            setOrcamentos(prev => prev.filter(o => o.id !== payload.old.id));
+            toast({ title: 'Orçamento removido.' });
           }
         }
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [fetchOrcamentos, toast]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [toast]);
 
   const aprovarOrcamento = async (id: string) => {
+    setLoading(true);
     try {
+      // Get orcamento details for notification
+      const { data: orcamento } = await supabase
+        .from('orcamentos')
+        .select('*, clientes(nome)')
+        .eq('id', id)
+        .single();
+
       const { error } = await supabase
         .from('orcamentos')
         .update({ status: 'aprovado' })
         .eq('id', id);
-      
+
       if (error) throw error;
+
+      // Call notification edge function
+      try {
+        await supabase.functions.invoke('notify-orcamento', {
+          body: {
+            orcamento_id: id,
+            status: 'aprovado',
+            user_id: orcamento?.created_by,
+            cliente_nome: orcamento?.clientes?.nome
+          }
+        });
+      } catch (notificationError) {
+        console.error('Error sending notification:', notificationError);
+        // Continue even if notification fails
+      }
       
       toast({
-        title: 'Processando aprovação...',
-        description: 'O sistema criará automaticamente a venda e lançamento financeiro.',
+        title: "Orçamento aprovado",
+        description: "Venda e lançamento financeiro criados automaticamente.",
       });
     } catch (error: any) {
-      console.error('Error approving orcamento:', error);
+      console.error('Error approving budget:', error);
       toast({
-        variant: 'destructive',
-        title: 'Erro',
-        description: 'Erro ao aprovar orçamento.',
+        title: "Erro ao aprovar orçamento",
+        description: error.message,
+        variant: "destructive",
       });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const rejeitarOrcamento = async (id: string) => {
+    setLoading(true);
+    try {
+      // Get orcamento details for notification
+      const { data: orcamento } = await supabase
+        .from('orcamentos')
+        .select('*, clientes(nome)')
+        .eq('id', id)
+        .single();
+
+      const { error } = await supabase
+        .from('orcamentos')
+        .update({ status: 'rejeitado' })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Call notification edge function
+      try {
+        await supabase.functions.invoke('notify-orcamento', {
+          body: {
+            orcamento_id: id,
+            status: 'rejeitado',
+            user_id: orcamento?.created_by,
+            cliente_nome: orcamento?.clientes?.nome
+          }
+        });
+      } catch (notificationError) {
+        console.error('Error sending notification:', notificationError);
+        // Continue even if notification fails
+      }
+
+      toast({
+        title: "Orçamento rejeitado",
+        description: "O cliente será notificado sobre a decisão.",
+      });
+    } catch (error: any) {
+      console.error('Error rejecting budget:', error);
+      toast({
+        title: "Erro ao rejeitar orçamento",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
   const adicionarOrcamento = async (orcamento: CreateOrcamento) => {
-    if (!user?.id) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro',
-        description: 'Usuário não autenticado.',
-      });
-      return null;
-    }
-
     try {
-      const { data: orcamentoData, error: orcamentoError } = await supabase
+      const { data, error } = await supabase
         .from('orcamentos')
-        .insert([{
+        .insert({
           cliente_id: orcamento.cliente_id,
           valor_total: orcamento.valor_total,
           data_vencimento: orcamento.data_vencimento,
           observacoes: orcamento.observacoes,
-          created_by: user.id,
-        }])
+        })
         .select()
         .single();
 
-      if (orcamentoError) throw orcamentoError;
+      if (error) throw error;
 
-      // Create items
-      const itemsData = orcamento.itens.map(item => ({
-        orcamento_id: orcamentoData.id,
-        ...item,
-      }));
+      // Add items
+      if (orcamento.itens && orcamento.itens.length > 0) {
+        const itens = orcamento.itens.map(item => ({
+          orcamento_id: data.id,
+          descricao: item.descricao,
+          quantidade: item.quantidade,
+          valor_unitario: item.valor_unitario,
+          total: item.quantidade * item.valor_unitario,
+        }));
 
-      const { error: itemsError } = await supabase
-        .from('itens_orcamento')
-        .insert(itemsData);
+        const { error: itensError } = await supabase
+          .from('itens_orcamento')
+          .insert(itens);
 
-      if (itemsError) throw itemsError;
+        if (itensError) throw itensError;
+      }
 
-      toast({
-        title: 'Sucesso',
-        description: 'Orçamento criado com sucesso!',
-      });
-
-      return orcamentoData;
+      return data;
     } catch (error: any) {
-      console.error('Error creating orcamento:', error);
+      console.error('Error adding budget:', error);
       toast({
+        title: 'Erro ao adicionar orçamento',
+        description: error.message,
         variant: 'destructive',
-        title: 'Erro',
-        description: 'Erro ao criar orçamento.',
       });
-      return null;
+      throw error;
     }
   };
 
-  return { orcamentos, loading, aprovarOrcamento, adicionarOrcamento };
+  const atualizarOrcamento = async (id: string, updates: Partial<Orcamento>) => {
+    try {
+      const { error } = await supabase
+        .from('orcamentos')
+        .update(updates)
+        .eq('id', id);
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error updating budget:', error);
+      toast({
+        title: 'Erro ao atualizar orçamento',
+        description: error.message,
+        variant: 'destructive',
+      });
+      throw error;
+    }
+  };
+
+  const deletarOrcamento = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('orcamentos')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+    } catch (error: any) {
+      console.error('Error deleting budget:', error);
+      toast({
+        title: 'Erro ao deletar orçamento',
+        description: error.message,
+        variant: 'destructive',
+      });
+      throw error;
+    }
+  };
+
+  return { 
+    orcamentos, 
+    loading, 
+    aprovarOrcamento,
+    rejeitarOrcamento,
+    adicionarOrcamento,
+    atualizarOrcamento,
+    deletarOrcamento 
+  };
 };
 
 // Hook para Vendas
 export const useVendas = () => {
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
 
   useEffect(() => {
     const fetchVendas = async () => {
@@ -425,29 +667,23 @@ export const useVendas = () => {
           .from('vendas')
           .select(`
             *,
-            orcamentos(valor_total),
-            usuarios(nome)
+            orcamentos(*, clientes(nome, email))
           `)
           .order('created_at', { ascending: false });
-        
+
         if (error) throw error;
         setVendas(data || []);
-      } catch (error: any) {
-        console.error('Error fetching vendas:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Erro',
-          description: 'Erro ao carregar vendas.',
-        });
+      } catch (error) {
+        console.error('Error fetching sales:', error);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchVendas();
 
     const channel = supabase
-      .channel('vendas-changes')
+      .channel('vendas-channel')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'vendas' }, 
         () => {
@@ -456,8 +692,10 @@ export const useVendas = () => {
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [toast]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   return { vendas, loading };
 };
@@ -466,7 +704,6 @@ export const useVendas = () => {
 export const useLancamentosFinanceiros = () => {
   const [lancamentos, setLancamentos] = useState<LancamentoFinanceiro[]>([]);
   const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
 
   useEffect(() => {
     const fetchLancamentos = async () => {
@@ -475,39 +712,35 @@ export const useLancamentosFinanceiros = () => {
           .from('lancamentos_financeiros')
           .select(`
             *,
-            vendas(valor_total),
-            usuarios(nome)
+            vendas(*, orcamentos(*, clientes(nome)))
           `)
           .order('created_at', { ascending: false });
-        
+
         if (error) throw error;
         setLancamentos(data || []);
-      } catch (error: any) {
-        console.error('Error fetching lancamentos:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Erro',
-          description: 'Erro ao carregar lançamentos financeiros.',
-        });
+      } catch (error) {
+        console.error('Error fetching financial entries:', error);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchLancamentos();
 
     const channel = supabase
-      .channel('lancamentos-changes')
+      .channel('lancamentos-channel')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'lancamentos_financeiros' }, 
         () => {
-          fetchLancamentos();
+          fetchLancamentos(); // Refetch for joins
         }
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [toast]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   return { lancamentos, loading };
 };
@@ -516,8 +749,8 @@ export const useLancamentosFinanceiros = () => {
 export const useUsuarios = () => {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
+  const [canManageUsers, setCanManageUsers] = useState(false);
   const { toast } = useToast();
-  const { usuario: currentUser } = useAuth();
 
   useEffect(() => {
     const fetchUsuarios = async () => {
@@ -526,63 +759,67 @@ export const useUsuarios = () => {
           .from('usuarios')
           .select('*')
           .order('created_at', { ascending: false });
-        
+
         if (error) throw error;
         setUsuarios(data || []);
-      } catch (error: any) {
-        console.error('Error fetching usuarios:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Erro',
-          description: 'Erro ao carregar usuários.',
-        });
+
+        // Check if current user can manage users
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const currentUser = data?.find(u => u.id === user.id);
+          setCanManageUsers(currentUser?.role === 'ADM_MASTER');
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchUsuarios();
 
     const channel = supabase
-      .channel('usuarios-changes')
+      .channel('usuarios-channel')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'usuarios' }, 
         () => {
-          fetchUsuarios();
+          fetchUsuarios(); // Refetch to update permissions
         }
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
-  }, [toast]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   const toggleAtivo = async (id: string) => {
     try {
-      const { data } = await supabase
+      const { data: usuario } = await supabase
         .from('usuarios')
         .select('ativo')
         .eq('id', id)
-        .maybeSingle();
-      
-      const novoAtivo = !data?.ativo;
+        .single();
+
+      const novoAtivo = !usuario?.ativo;
       
       const { error } = await supabase
         .from('usuarios')
         .update({ ativo: novoAtivo })
         .eq('id', id);
-      
+
       if (error) throw error;
-      
+
       toast({
-        title: 'Sucesso',
-        description: `Usuário ${novoAtivo ? 'ativado' : 'desativado'} com sucesso!`,
+        title: novoAtivo ? 'Usuário ativado' : 'Usuário desativado',
+        description: `Status do usuário alterado com sucesso.`,
       });
     } catch (error: any) {
       console.error('Error toggling user status:', error);
       toast({
+        title: 'Erro ao alterar status',
+        description: error.message,
         variant: 'destructive',
-        title: 'Erro',
-        description: 'Erro ao alterar status do usuário.',
       });
     }
   };
@@ -593,30 +830,28 @@ export const useUsuarios = () => {
         .from('usuarios')
         .update(updates)
         .eq('id', id);
-      
+
       if (error) throw error;
-      
+
       toast({
-        title: 'Sucesso',
-        description: 'Usuário atualizado com sucesso!',
+        title: 'Usuário atualizado',
+        description: 'Dados do usuário alterados com sucesso.',
       });
     } catch (error: any) {
       console.error('Error updating user:', error);
       toast({
+        title: 'Erro ao atualizar usuário',
+        description: error.message,
         variant: 'destructive',
-        title: 'Erro',
-        description: 'Erro ao atualizar usuário.',
       });
     }
   };
 
-  const canManageUsers = currentUser?.role === 'ADM_MASTER';
-
   return { 
     usuarios, 
     loading, 
-    toggleAtivo: canManageUsers ? toggleAtivo : undefined,
-    atualizarUsuario: canManageUsers ? atualizarUsuario : undefined,
+    toggleAtivo, 
+    atualizarUsuario, 
     canManageUsers 
   };
 };

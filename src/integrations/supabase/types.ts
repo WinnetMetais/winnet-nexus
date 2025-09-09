@@ -136,6 +136,48 @@ export type Database = {
           },
         ]
       }
+      logs: {
+        Row: {
+          created_at: string | null
+          id: string
+          mensagem: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          mensagem: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          mensagem?: string
+        }
+        Relationships: []
+      }
+      notificacoes: {
+        Row: {
+          created_at: string | null
+          id: string
+          lida: boolean | null
+          mensagem: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          lida?: boolean | null
+          mensagem: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          lida?: boolean | null
+          mensagem?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       orcamentos: {
         Row: {
           cliente_id: string | null
