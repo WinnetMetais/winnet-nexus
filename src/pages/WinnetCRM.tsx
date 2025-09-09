@@ -23,7 +23,10 @@ import {
   BarChart3,
   Calendar,
   LogOut,
-  Home
+  Home,
+  Loader2,
+  UserCheck,
+  UserX
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,28 +43,29 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { useAuth } from '@/hooks/useAuth';
-import { useSupabaseData } from '@/hooks/useSupabaseData';
+import { 
+  useAuth, 
+  useClientes, 
+  useOrcamentos, 
+  useVendas, 
+  useLancamentosFinanceiros, 
+  useUsuarios 
+} from '@/hooks/useCRM';
 import { Navigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
 const WinnetCRM: React.FC = () => {
+  // Auth and user data
   const { user, usuario, signOut, loading: authLoading } = useAuth();
-  const { 
-    clientes, 
-    orcamentos, 
-    vendas, 
-    lancamentos, 
-    usuarios,
-    loading: dataLoading,
-    updateOrcamento,
-    createCliente,
-    createOrcamento 
-  } = useSupabaseData(user?.id);
   
-  const { toast } = useToast();
+  // Data hooks with realtime
+  const { clientes, loading: loadingClientes, adicionarCliente } = useClientes();
+  const { orcamentos, loading: loadingOrcamentos, aprovarOrcamento } = useOrcamentos();
+  const { vendas, loading: loadingVendas } = useVendas();
+  const { lancamentos, loading: loadingLancamentos } = useLancamentosFinanceiros();
+  const { usuarios, loading: loadingUsuarios, toggleAtivo, canManageUsers } = useUsuarios();
+  
+  // UI state
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -71,45 +75,43 @@ const WinnetCRM: React.FC = () => {
   });
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [buttonLoading, setButtonLoading] = useState<Record<string, boolean>>({});
 
   // Redirect to auth if not logged in
   if (!authLoading && !user) {
     return <Navigate to="/auth" replace />;
   }
 
-  // Loading state
-  if (authLoading || dataLoading) {
+  // Main loading state
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-secondary/10">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="text-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+          <p className="text-sm text-muted-foreground">Carregando...</p>
+        </div>
       </div>
     );
   }
 
-  const handleSignOut = async () => {
-    const { error } = await signOut();
-    if (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro ao sair',
-        description: error.message,
-      });
+  // Handlers
+  const handleApproveOrcamento = async (orcamentoId: string) => {
+    setButtonLoading(prev => ({ ...prev, [orcamentoId]: true }));
+    try {
+      await aprovarOrcamento(orcamentoId);
+    } finally {
+      setButtonLoading(prev => ({ ...prev, [orcamentoId]: false }));
     }
   };
 
-  const handleApproveOrcamento = async (orcamentoId: string) => {
-    const { error } = await updateOrcamento(orcamentoId, { status: 'aprovado' });
-    if (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro',
-        description: 'Erro ao aprovar orçamento',
-      });
-    } else {
-      toast({
-        title: 'Sucesso',
-        description: 'Orçamento aprovado com sucesso! Venda e lançamento financeiro criados automaticamente.',
-      });
+  const handleToggleUserStatus = async (userId: string) => {
+    if (!toggleAtivo) return;
+    
+    setButtonLoading(prev => ({ ...prev, [userId]: true }));
+    try {
+      await toggleAtivo(userId);
+    } finally {
+      setButtonLoading(prev => ({ ...prev, [userId]: false }));
     }
   };
 
@@ -117,7 +119,9 @@ const WinnetCRM: React.FC = () => {
   const totalVendas = vendas.filter(v => v.status === 'confirmada').reduce((acc, v) => acc + v.valor_total, 0);
   const totalOrcamentos = orcamentos.length;
   const orcamentosAprovados = orcamentos.filter(o => o.status === 'aprovado').length;
+  const orcamentosPendentes = orcamentos.filter(o => o.status === 'enviado').length;
   const totalClientes = clientes.length;
+  const usuariosAtivos = usuarios.filter(u => u.ativo).length;
   
   // Recent activities based on real data
   const recentActivities = useMemo(() => {
@@ -125,7 +129,7 @@ const WinnetCRM: React.FC = () => {
       ...orcamentos.slice(0, 3).map(o => ({
         id: o.id,
         type: 'orcamento' as const,
-        message: `Novo orçamento para ${o.cliente?.nome || 'Cliente'}`,
+        message: `Novo orçamento para ${o.clientes?.nome || 'Cliente'}`,
         time: new Date(o.created_at).toLocaleString('pt-BR'),
         status: o.status
       })),
@@ -313,7 +317,7 @@ const WinnetCRM: React.FC = () => {
                   <span>Configurações</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
+                <DropdownMenuItem onClick={signOut}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Sair</span>
                 </DropdownMenuItem>
@@ -351,10 +355,11 @@ const WinnetCRM: React.FC = () => {
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-muted-foreground">Orçamentos</p>
-                          <p className="text-3xl font-bold">{totalOrcamentos}</p>
+                          <p className="text-sm font-medium text-muted-foreground">Orçamentos Pendentes</p>
+                          <p className="text-3xl font-bold">{orcamentosPendentes}</p>
+                          <p className="text-xs text-orange-500">Aguardando aprovação</p>
                         </div>
-                        <FileText className="h-8 w-8 text-primary" />
+                        <FileText className="h-8 w-8 text-orange-500" />
                       </div>
                     </CardContent>
                   </Card>
@@ -375,10 +380,15 @@ const WinnetCRM: React.FC = () => {
                     <CardContent className="p-6">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-medium text-muted-foreground">Aprovados</p>
-                          <p className="text-3xl font-bold">{orcamentosAprovados}</p>
+                          <p className="text-sm font-medium text-muted-foreground">Usuários Ativos</p>
+                          <p className="text-3xl font-bold">{usuariosAtivos}</p>
+                          <p className="text-xs text-green-500">
+                            <Badge variant="outline" className="text-xs">
+                              {usuario?.role}
+                            </Badge>
+                          </p>
                         </div>
-                        <CheckCircle className="h-8 w-8 text-primary" />
+                        <Users className="h-8 w-8 text-green-500" />
                       </div>
                     </CardContent>
                   </Card>
@@ -389,34 +399,63 @@ const WinnetCRM: React.FC = () => {
                   <Card>
                     <CardHeader>
                       <CardTitle>Vendas por Mês</CardTitle>
+                      <CardDescription>
+                        {loadingVendas ? 'Carregando...' : `Total: R$ ${totalVendas.toLocaleString('pt-BR')}`}
+                      </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={salesData}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis dataKey="month" />
-                          <YAxis />
-                          <Tooltip />
-                          <Bar dataKey="value" fill="hsl(var(--primary))" />
-                        </BarChart>
-                      </ResponsiveContainer>
+                      {loadingVendas ? (
+                        <div className="flex items-center justify-center h-[300px]">
+                          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : (
+                        <ResponsiveContainer width="100%" height={300}>
+                          <BarChart data={salesData}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="month" />
+                            <YAxis />
+                            <Tooltip formatter={(value) => [`R$ ${value.toLocaleString('pt-BR')}`, 'Vendas']} />
+                            <Bar dataKey="value" fill="hsl(var(--primary))" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      )}
                     </CardContent>
                   </Card>
 
                   <Card>
                     <CardHeader>
                       <CardTitle>Atividades Recentes</CardTitle>
+                      <CardDescription>
+                        Últimas movimentações do sistema
+                      </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {recentActivities.map((activity) => (
-                        <div key={activity.id} className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50">
-                          <div className={cn("w-2 h-2 rounded-full", getStatusColor(activity.status))} />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium">{activity.message}</p>
-                            <p className="text-xs text-muted-foreground">{activity.time}</p>
-                          </div>
+                      {loadingOrcamentos || loadingVendas ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
-                      ))}
+                      ) : recentActivities.length > 0 ? (
+                        recentActivities.map((activity) => (
+                          <motion.div 
+                            key={activity.id} 
+                            className="flex items-center space-x-3 p-3 rounded-lg bg-muted/50"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <div className={cn("w-2 h-2 rounded-full", getStatusColor(activity.status))} />
+                            <div className="flex-1">
+                              <p className="text-sm font-medium">{activity.message}</p>
+                              <p className="text-xs text-muted-foreground">{activity.time}</p>
+                            </div>
+                          </motion.div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Clock className="h-8 w-8 mx-auto mb-2" />
+                          <p className="text-sm">Nenhuma atividade recente</p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 </div>
@@ -431,29 +470,71 @@ const WinnetCRM: React.FC = () => {
                 exit={{ opacity: 0, y: -20 }}
               >
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Clientes</CardTitle>
-                    <CardDescription>Gerencie seus clientes</CardDescription>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>Clientes ({clientes.length})</CardTitle>
+                      <CardDescription>Gerencie seus clientes</CardDescription>
+                    </div>
+                    <Button className="hover-scale">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Novo Cliente
+                    </Button>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {clientes.map((cliente) => (
-                        <div key={cliente.id} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div>
-                            <h3 className="font-medium">{cliente.nome}</h3>
-                            <p className="text-sm text-muted-foreground">{cliente.email}</p>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Button variant="ghost" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="sm">
-                              <Edit3 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    {loadingClientes ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : clientes.length > 0 ? (
+                      <div className="space-y-4">
+                        {clientes.filter(c => 
+                          c.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          c.email.toLowerCase().includes(searchTerm.toLowerCase())
+                        ).map((cliente) => (
+                          <motion.div 
+                            key={cliente.id} 
+                            className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            whileHover={{ scale: 1.02 }}
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3">
+                                <Avatar className="h-10 w-10">
+                                  <AvatarFallback className="bg-primary/10 text-primary">
+                                    {cliente.nome.charAt(0)}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <h3 className="font-medium">{cliente.nome}</h3>
+                                  <p className="text-sm text-muted-foreground">{cliente.email}</p>
+                                  {cliente.empresa && (
+                                    <p className="text-xs text-muted-foreground">{cliente.empresa}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Button variant="ghost" size="sm" className="hover-scale">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm" className="hover-scale">
+                                <Edit3 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">Nenhum cliente encontrado</p>
+                        <Button className="mt-4 hover-scale">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Adicionar Primeiro Cliente
+                        </Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </motion.div>
@@ -467,43 +548,198 @@ const WinnetCRM: React.FC = () => {
                 exit={{ opacity: 0, y: -20 }}
               >
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Orçamentos</CardTitle>
-                    <CardDescription>Gerencie seus orçamentos</CardDescription>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle>Orçamentos ({orcamentos.length})</CardTitle>
+                      <CardDescription>
+                        Gerencie seus orçamentos • {orcamentosPendentes} pendentes
+                      </CardDescription>
+                    </div>
+                    <Button className="hover-scale">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Novo Orçamento
+                    </Button>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {orcamentos.map((orcamento) => (
-                        <div key={orcamento.id} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div>
-                            <h3 className="font-medium">Orçamento #{orcamento.id.slice(-6)}</h3>
-                            <p className="text-sm text-muted-foreground">{orcamento.cliente?.nome}</p>
-                            <p className="text-lg font-bold text-primary">R$ {orcamento.valor_total.toLocaleString('pt-BR')}</p>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Badge variant={orcamento.status === 'aprovado' ? 'default' : 'secondary'}>
-                              {orcamento.status}
-                            </Badge>
-                            {orcamento.status === 'enviado' && (
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => handleApproveOrcamento(orcamento.id)}
+                    {loadingOrcamentos ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : orcamentos.length > 0 ? (
+                      <div className="space-y-4">
+                        {orcamentos.filter(o => 
+                          o.clientes?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          o.id.toLowerCase().includes(searchTerm.toLowerCase())
+                        ).map((orcamento) => (
+                          <motion.div 
+                            key={orcamento.id} 
+                            className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            whileHover={{ scale: 1.02 }}
+                          >
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3">
+                                <div className="p-2 rounded-lg bg-primary/10">
+                                  <FileText className="h-5 w-5 text-primary" />
+                                </div>
+                                <div>
+                                  <h3 className="font-medium">Orçamento #{orcamento.id.slice(-6)}</h3>
+                                  <p className="text-sm text-muted-foreground">{orcamento.clientes?.nome}</p>
+                                  <div className="flex items-center space-x-4 mt-1">
+                                    <p className="text-lg font-bold text-primary">
+                                      R$ {orcamento.valor_total.toLocaleString('pt-BR')}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      Vence: {new Date(orcamento.data_vencimento).toLocaleDateString('pt-BR')}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Badge 
+                                variant={
+                                  orcamento.status === 'aprovado' ? 'default' : 
+                                  orcamento.status === 'enviado' ? 'secondary' :
+                                  orcamento.status === 'rejeitado' ? 'destructive' : 'outline'
+                                }
+                                className="animate-fade-in"
                               >
-                                Aprovar
+                                {orcamento.status}
+                              </Badge>
+                              {orcamento.status === 'enviado' && (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => handleApproveOrcamento(orcamento.id)}
+                                  disabled={buttonLoading[orcamento.id]}
+                                  className="hover-scale"
+                                >
+                                  {buttonLoading[orcamento.id] ? (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                  ) : (
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                  )}
+                                  Aprovar
+                                </Button>
+                              )}
+                              <Button variant="ghost" size="sm" className="hover-scale">
+                                <Eye className="h-4 w-4" />
                               </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">Nenhum orçamento encontrado</p>
+                        <Button className="mt-4 hover-scale">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Criar Primeiro Orçamento
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {activeTab === 'configuracoes' && canManageUsers && (
+              <motion.div
+                key="configuracoes"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Usuários do Sistema</CardTitle>
+                    <CardDescription>
+                      Gerencie usuários e permissões • Apenas ADM_MASTER
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingUsuarios ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : usuarios.length > 0 ? (
+                      <div className="space-y-4">
+                        {usuarios.map((user) => (
+                          <motion.div 
+                            key={user.id} 
+                            className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            whileHover={{ scale: 1.02 }}
+                          >
+                            <div className="flex items-center space-x-3">
+                              <Avatar className="h-10 w-10">
+                                <AvatarFallback className={cn(
+                                  "text-white",
+                                  user.ativo ? "bg-green-500" : "bg-gray-400"
+                                )}>
+                                  {user.nome.charAt(0)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="flex items-center space-x-2">
+                                  <h3 className="font-medium">{user.nome}</h3>
+                                  <Badge 
+                                    variant={
+                                      user.role === 'ADM_MASTER' ? 'default' :
+                                      user.role === 'VENDEDOR' ? 'secondary' : 'outline'
+                                    }
+                                    className="text-xs"
+                                  >
+                                    {user.role}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground">{user.email}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Criado em: {new Date(user.created_at).toLocaleDateString('pt-BR')}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                variant={user.ativo ? "outline" : "default"}
+                                size="sm"
+                                onClick={() => handleToggleUserStatus(user.id)}
+                                disabled={buttonLoading[user.id] || user.id === usuario?.id}
+                                className="hover-scale"
+                              >
+                                {buttonLoading[user.id] ? (
+                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                ) : user.ativo ? (
+                                  <UserX className="h-4 w-4 mr-2" />
+                                ) : (
+                                  <UserCheck className="h-4 w-4 mr-2" />
+                                )}
+                                {user.ativo ? 'Desativar' : 'Ativar'}
+                              </Button>
+                              <Button variant="ghost" size="sm" className="hover-scale">
+                                <Edit3 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12">
+                        <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">Nenhum usuário encontrado</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </motion.div>
             )}
 
             {/* Placeholder for other tabs */}
-            {['vendas', 'financeiro', 'configuracoes'].includes(activeTab) && (
+            {['vendas', 'financeiro'].includes(activeTab) && (
               <motion.div
                 key={activeTab}
                 initial={{ opacity: 0, y: 20 }}
@@ -521,6 +757,47 @@ const WinnetCRM: React.FC = () => {
                       <p className="text-muted-foreground">
                         A seção {activeTab} será implementada em breve.
                       </p>
+                      <Button 
+                        variant="outline" 
+                        className="mt-4 hover-scale"
+                        onClick={() => setActiveTab('dashboard')}
+                      >
+                        Voltar ao Dashboard
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {activeTab === 'configuracoes' && !canManageUsers && (
+              <motion.div
+                key="no-permission"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Acesso Negado</CardTitle>
+                    <CardDescription>Você não tem permissão para acessar esta seção.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-center py-12">
+                      <XCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+                      <p className="text-muted-foreground mb-2">
+                        Apenas usuários com perfil <Badge variant="outline">ADM_MASTER</Badge> podem gerenciar usuários.
+                      </p>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Seu perfil atual: <Badge variant="secondary">{usuario?.role}</Badge>
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        className="hover-scale"
+                        onClick={() => setActiveTab('dashboard')}
+                      >
+                        Voltar ao Dashboard
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
