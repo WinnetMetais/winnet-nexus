@@ -67,30 +67,36 @@ export type Database = {
       }
       itens_orcamento: {
         Row: {
+          codigo: string | null
           created_at: string | null
           descricao: string
           id: string
           orcamento_id: string | null
           quantidade: number | null
           total: number | null
+          unidade: string | null
           valor_unitario: number
         }
         Insert: {
+          codigo?: string | null
           created_at?: string | null
           descricao: string
           id?: string
           orcamento_id?: string | null
           quantidade?: number | null
           total?: number | null
+          unidade?: string | null
           valor_unitario: number
         }
         Update: {
+          codigo?: string | null
           created_at?: string | null
           descricao?: string
           id?: string
           orcamento_id?: string | null
           quantidade?: number | null
           total?: number | null
+          unidade?: string | null
           valor_unitario?: number
         }
         Relationships: [
@@ -205,9 +211,16 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           data_vencimento: string
+          desconto_percentual: number | null
+          forma_pagamento: string | null
+          garantia: string | null
           id: string
+          numero_orcamento: string | null
           observacoes: string | null
+          prazo_entrega: string | null
+          solicitado_por: string | null
           status: string | null
+          subtotal: number | null
           updated_at: string | null
           valor_total: number
         }
@@ -216,9 +229,16 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           data_vencimento: string
+          desconto_percentual?: number | null
+          forma_pagamento?: string | null
+          garantia?: string | null
           id?: string
+          numero_orcamento?: string | null
           observacoes?: string | null
+          prazo_entrega?: string | null
+          solicitado_por?: string | null
           status?: string | null
+          subtotal?: number | null
           updated_at?: string | null
           valor_total?: number
         }
@@ -227,9 +247,16 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           data_vencimento?: string
+          desconto_percentual?: number | null
+          forma_pagamento?: string | null
+          garantia?: string | null
           id?: string
+          numero_orcamento?: string | null
           observacoes?: string | null
+          prazo_entrega?: string | null
+          solicitado_por?: string | null
           status?: string | null
+          subtotal?: number | null
           updated_at?: string | null
           valor_total?: number
         }

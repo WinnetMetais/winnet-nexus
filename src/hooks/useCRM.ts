@@ -564,13 +564,20 @@ export const useOrcamentos = () => {
 
   const adicionarOrcamento = async (orcamento: CreateOrcamento) => {
     try {
-      const { data, error } = await supabase
+      const { data: orcamentoData, error } = await supabase
         .from('orcamentos')
         .insert({
           cliente_id: orcamento.cliente_id,
           valor_total: orcamento.valor_total,
+          subtotal: orcamento.subtotal,
           data_vencimento: orcamento.data_vencimento,
           observacoes: orcamento.observacoes,
+          numero_orcamento: orcamento.numero_orcamento,
+          solicitado_por: orcamento.solicitado_por,
+          desconto_percentual: orcamento.desconto_percentual,
+          forma_pagamento: orcamento.forma_pagamento,
+          prazo_entrega: orcamento.prazo_entrega,
+          garantia: orcamento.garantia,
         })
         .select()
         .single();
@@ -580,9 +587,11 @@ export const useOrcamentos = () => {
       // Add items
       if (orcamento.itens && orcamento.itens.length > 0) {
         const itens = orcamento.itens.map(item => ({
-          orcamento_id: data.id,
+          orcamento_id: orcamentoData.id,
+          codigo: item.codigo,
           descricao: item.descricao,
           quantidade: item.quantidade,
+          unidade: item.unidade,
           valor_unitario: item.valor_unitario,
           total: item.quantidade * item.valor_unitario,
         }));
@@ -594,7 +603,7 @@ export const useOrcamentos = () => {
         if (itensError) throw itensError;
       }
 
-      return data;
+      return orcamentoData;
     } catch (error: any) {
       console.error('Error adding budget:', error);
       toast({
