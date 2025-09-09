@@ -54,6 +54,7 @@ import {
 } from '@/hooks/useCRM';
 import { ClienteFormModal } from '@/components/ClienteFormModal';
 import { OrcamentoFormModal } from '@/components/OrcamentoFormModal';
+import { FinanceiroPanel } from '@/components/FinanceiroPanel';
 import { Navigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -827,24 +828,24 @@ const WinnetCRM: React.FC = () => {
               </motion.div>
             )}
 
-            {/* Placeholder for other tabs */}
-            {['vendas', 'financeiro'].includes(activeTab) && (
+            {/* Vendas tab - placeholder */}
+            {activeTab === 'vendas' && (
               <motion.div
-                key={activeTab}
+                key="vendas"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
                 <Card>
                   <CardHeader>
-                    <CardTitle>{activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}</CardTitle>
+                    <CardTitle>Vendas</CardTitle>
                     <CardDescription>Esta seção está em desenvolvimento.</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="text-center py-12">
                       <div className="text-4xl mb-4">🚧</div>
                       <p className="text-muted-foreground">
-                        A seção {activeTab} será implementada em breve.
+                        A seção vendas será implementada em breve.
                       </p>
                       <Button 
                         variant="outline" 
@@ -856,6 +857,18 @@ const WinnetCRM: React.FC = () => {
                     </div>
                   </CardContent>
                 </Card>
+              </motion.div>
+            )}
+
+            {/* Financeiro tab */}
+            {activeTab === 'financeiro' && (
+              <motion.div
+                key="financeiro"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+              >
+                <FinanceiroPanel />
               </motion.div>
             )}
 

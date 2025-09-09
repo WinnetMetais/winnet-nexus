@@ -161,6 +161,13 @@ export type Database = {
             referencedRelation: "vendas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "lancamentos_financeiros_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
+            referencedRelation: "vw_pendentes_financeiros"
+            referencedColumns: ["venda_id"]
+          },
         ]
       }
       logs: {
@@ -277,6 +284,70 @@ export type Database = {
           },
         ]
       }
+      pagamentos: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          data_pagamento: string | null
+          id: string
+          metodo: string | null
+          parcela_num: number | null
+          status: string | null
+          total_parcelas: number | null
+          updated_at: string | null
+          valor_pago: number
+          venda_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          data_pagamento?: string | null
+          id?: string
+          metodo?: string | null
+          parcela_num?: number | null
+          status?: string | null
+          total_parcelas?: number | null
+          updated_at?: string | null
+          valor_pago: number
+          venda_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          data_pagamento?: string | null
+          id?: string
+          metodo?: string | null
+          parcela_num?: number | null
+          status?: string | null
+          total_parcelas?: number | null
+          updated_at?: string | null
+          valor_pago?: number
+          venda_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagamentos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagamentos_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
+            referencedRelation: "vendas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagamentos_venda_id_fkey"
+            columns: ["venda_id"]
+            isOneToOne: false
+            referencedRelation: "vw_pendentes_financeiros"
+            referencedColumns: ["venda_id"]
+          },
+        ]
+      }
       usuarios: {
         Row: {
           ativo: boolean | null
@@ -354,7 +425,41 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      vw_fluxo_caixa: {
+        Row: {
+          mes: string | null
+          saldo: number | null
+          total_entradas: number | null
+          total_saidas: number | null
+        }
+        Relationships: []
+      }
+      vw_kpis_financeiros: {
+        Row: {
+          entradas_mes_atual: number | null
+          pagamentos_pendentes: number | null
+          saidas_mes_atual: number | null
+          total_entradas: number | null
+          total_saidas: number | null
+          vendas_pendentes: number | null
+        }
+        Relationships: []
+      }
+      vw_pendentes_financeiros: {
+        Row: {
+          cliente_nome: string | null
+          data_pagamento: string | null
+          data_venda: string | null
+          forma_pagamento: string | null
+          lancamento_status: string | null
+          numero_orcamento: string | null
+          pagamento_status: string | null
+          valor_total: number | null
+          venda_id: string | null
+          venda_status: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_user_role: {

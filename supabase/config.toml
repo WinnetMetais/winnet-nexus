@@ -53,6 +53,9 @@ major_version = 15
 [functions.notify-orcamento]
 verify_jwt = false
 
+[functions.notify-financeiro]
+verify_jwt = false
+
 [studio]
 enabled = true
 # Port to use for Supabase Studio.

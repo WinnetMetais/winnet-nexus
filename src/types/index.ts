@@ -81,6 +81,23 @@ export interface LancamentoFinanceiro {
   creator?: Usuario;
 }
 
+export interface Pagamento {
+  id: string;
+  venda_id: string;
+  valor_pago: number;
+  data_pagamento: string;
+  metodo: string;
+  status: string;
+  parcela_num: number;
+  total_parcelas: number;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  // Relations
+  venda?: Venda;
+  creator?: Usuario;
+}
+
 export interface Usuario {
   id: string;
   nome: string;
