@@ -63,10 +63,11 @@ const WinnetCRM: React.FC = () => {
   
   // Data hooks with realtime
   const { clientes, loading: loadingClientes, adicionarCliente } = useClientes();
-  const { orcamentos, loading: loadingOrcamentos, aprovarOrcamento } = useOrcamentos();
+  const { orcamentos, loading: loadingOrcamentos, aprovarOrcamento, rejeitarOrcamento } = useOrcamentos();
   const { vendas, loading: loadingVendas } = useVendas();
   const { lancamentos, loading: loadingLancamentos } = useLancamentosFinanceiros();
   const { usuarios, loading: loadingUsuarios, toggleAtivo, canManageUsers } = useUsuarios();
+  const { notificacoes, unreadCount, marcarComoLida, marcarTodasComoLidas } = useNotificacoes(user?.id);
   
   // UI state
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -149,6 +150,15 @@ const WinnetCRM: React.FC = () => {
     setButtonLoading(prev => ({ ...prev, [orcamentoId]: true }));
     try {
       await aprovarOrcamento(orcamentoId);
+    } finally {
+      setButtonLoading(prev => ({ ...prev, [orcamentoId]: false }));
+    }
+  };
+
+  const handleRejectOrcamento = async (orcamentoId: string) => {
+    setButtonLoading(prev => ({ ...prev, [orcamentoId]: true }));
+    try {
+      await rejeitarOrcamento(orcamentoId);
     } finally {
       setButtonLoading(prev => ({ ...prev, [orcamentoId]: false }));
     }
@@ -278,6 +288,19 @@ const WinnetCRM: React.FC = () => {
             
             <div className="text-sm text-muted-foreground">
               Bem-vindo, <span className="font-medium text-foreground">{usuario?.nome}</span>
+              {/* Role Badge */}
+              {usuario?.role && (
+                <Badge 
+                  variant={
+                    usuario.role === 'ADM_MASTER' ? 'destructive' : 
+                    usuario.role === 'VENDEDOR' ? 'default' : 
+                    'secondary'
+                  }
+                  className="text-xs ml-2"
+                >
+                  {usuario.role}
+                </Badge>
+              )}
             </div>
           </div>
 
@@ -291,10 +314,61 @@ const WinnetCRM: React.FC = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            
-            <Button variant="ghost" size="sm" className="hover-scale">
-              <Bell className="h-4 w-4" />
-            </Button>
+
+            {/* Notifications */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <Badge 
+                      variant="destructive" 
+                      className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs flex items-center justify-center"
+                    >
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-80" align="end">
+                <DropdownMenuLabel className="flex items-center justify-between">
+                  <span>Notificações</span>
+                  {unreadCount > 0 && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={marcarTodasComoLidas}
+                      className="text-xs h-6"
+                    >
+                      Marcar todas como lidas
+                    </Button>
+                  )}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <div className="max-h-80 overflow-y-auto">
+                  {notificacoes.length === 0 ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      Nenhuma notificação
+                    </div>
+                  ) : (
+                    notificacoes.slice(0, 10).map((notificacao) => (
+                      <DropdownMenuItem
+                        key={notificacao.id}
+                        className={`flex flex-col items-start p-3 cursor-pointer ${
+                          !notificacao.lida ? 'bg-accent' : ''
+                        }`}
+                        onClick={() => !notificacao.lida && marcarComoLida(notificacao.id)}
+                      >
+                        <span className="text-sm">{notificacao.mensagem}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(notificacao.created_at).toLocaleString('pt-BR')}
+                        </span>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
             
             <Button variant="ghost" size="sm" onClick={toggleDarkMode} className="hover-scale">
               {isDarkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -618,20 +692,36 @@ const WinnetCRM: React.FC = () => {
                                 {orcamento.status}
                               </Badge>
                               {orcamento.status === 'enviado' && (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => handleApproveOrcamento(orcamento.id)}
-                                  disabled={buttonLoading[orcamento.id]}
-                                  className="hover-scale"
-                                >
-                                  {buttonLoading[orcamento.id] ? (
-                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                  ) : (
-                                    <CheckCircle className="h-4 w-4 mr-2" />
-                                  )}
-                                  Aprovar
-                                </Button>
+                                <div className="flex items-center space-x-2">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => handleApproveOrcamento(orcamento.id)}
+                                    disabled={buttonLoading[orcamento.id]}
+                                    className="hover-scale"
+                                  >
+                                    {buttonLoading[orcamento.id] ? (
+                                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                    ) : (
+                                      <CheckCircle className="h-4 w-4 mr-2" />
+                                    )}
+                                    Aprovar
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => handleRejectOrcamento(orcamento.id)}
+                                    disabled={buttonLoading[orcamento.id]}
+                                    className="text-xs"
+                                  >
+                                    {buttonLoading[orcamento.id] ? (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <XCircle className="w-3 h-3" />
+                                    )}
+                                    Rejeitar
+                                  </Button>
+                                </div>
                               )}
                               <Button variant="ghost" size="sm" className="hover-scale">
                                 <Eye className="h-4 w-4" />
