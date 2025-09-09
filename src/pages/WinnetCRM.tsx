@@ -55,6 +55,8 @@ import { Navigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 const WinnetCRM: React.FC = () => {
+  // ALL HOOKS MUST BE CALLED FIRST - NO CONDITIONAL LOGIC BEFORE HOOKS
+  
   // Auth and user data
   const { user, usuario, signOut, loading: authLoading } = useAuth();
   
@@ -77,6 +79,53 @@ const WinnetCRM: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [buttonLoading, setButtonLoading] = useState<Record<string, boolean>>({});
 
+  // Computed metrics using real data - ALL MEMOS MUST BE CALLED BEFORE CONDITIONS
+  const totalVendas = useMemo(() => 
+    vendas.filter(v => v.status === 'confirmada').reduce((acc, v) => acc + v.valor_total, 0), 
+    [vendas]
+  );
+  
+  const totalOrcamentos = useMemo(() => orcamentos.length, [orcamentos]);
+  const orcamentosAprovados = useMemo(() => orcamentos.filter(o => o.status === 'aprovado').length, [orcamentos]);
+  const orcamentosPendentes = useMemo(() => orcamentos.filter(o => o.status === 'enviado').length, [orcamentos]);
+  const totalClientes = useMemo(() => clientes.length, [clientes]);
+  const usuariosAtivos = useMemo(() => usuarios.filter(u => u.ativo).length, [usuarios]);
+  
+  // Recent activities based on real data
+  const recentActivities = useMemo(() => {
+    const activities = [
+      ...orcamentos.slice(0, 3).map(o => ({
+        id: o.id,
+        type: 'orcamento' as const,
+        message: `Novo orçamento para ${o.clientes?.nome || 'Cliente'}`,
+        time: new Date(o.created_at).toLocaleString('pt-BR'),
+        status: o.status
+      })),
+      ...vendas.slice(0, 2).map(v => ({
+        id: v.id,
+        type: 'venda' as const,
+        message: `Venda confirmada - R$ ${v.valor_total.toLocaleString('pt-BR')}`,
+        time: new Date(v.created_at).toLocaleString('pt-BR'),
+        status: v.status
+      }))
+    ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+    
+    return activities.slice(0, 5);
+  }, [orcamentos, vendas]);
+
+  // Sales data for charts
+  const salesData = useMemo(() => {
+    const monthlyData = vendas.reduce((acc, venda) => {
+      const month = new Date(venda.created_at).toLocaleDateString('pt-BR', { month: 'short' });
+      acc[month] = (acc[month] || 0) + venda.valor_total;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(monthlyData).map(([month, value]) => ({ month, value }));
+  }, [vendas]);
+
+  // NOW CONDITIONAL LOGIC CAN HAPPEN AFTER ALL HOOKS
+  
   // Redirect to auth if not logged in
   if (!authLoading && !user) {
     return <Navigate to="/auth" replace />;
@@ -115,36 +164,6 @@ const WinnetCRM: React.FC = () => {
     }
   };
 
-  // Computed metrics using real data
-  const totalVendas = vendas.filter(v => v.status === 'confirmada').reduce((acc, v) => acc + v.valor_total, 0);
-  const totalOrcamentos = orcamentos.length;
-  const orcamentosAprovados = orcamentos.filter(o => o.status === 'aprovado').length;
-  const orcamentosPendentes = orcamentos.filter(o => o.status === 'enviado').length;
-  const totalClientes = clientes.length;
-  const usuariosAtivos = usuarios.filter(u => u.ativo).length;
-  
-  // Recent activities based on real data
-  const recentActivities = useMemo(() => {
-    const activities = [
-      ...orcamentos.slice(0, 3).map(o => ({
-        id: o.id,
-        type: 'orcamento' as const,
-        message: `Novo orçamento para ${o.clientes?.nome || 'Cliente'}`,
-        time: new Date(o.created_at).toLocaleString('pt-BR'),
-        status: o.status
-      })),
-      ...vendas.slice(0, 2).map(v => ({
-        id: v.id,
-        type: 'venda' as const,
-        message: `Venda confirmada - R$ ${v.valor_total.toLocaleString('pt-BR')}`,
-        time: new Date(v.created_at).toLocaleString('pt-BR'),
-        status: v.status
-      }))
-    ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-    
-    return activities.slice(0, 5);
-  }, [orcamentos, vendas]);
-
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
     document.documentElement.classList.toggle('dark');
@@ -153,17 +172,6 @@ const WinnetCRM: React.FC = () => {
   const toggleSidebar = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed);
   };
-
-  // Sales data for charts
-  const salesData = useMemo(() => {
-    const monthlyData = vendas.reduce((acc, venda) => {
-      const month = new Date(venda.created_at).toLocaleDateString('pt-BR', { month: 'short' });
-      acc[month] = (acc[month] || 0) + venda.valor_total;
-      return acc;
-    }, {} as Record<string, number>);
-
-    return Object.entries(monthlyData).map(([month, value]) => ({ month, value }));
-  }, [vendas]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
