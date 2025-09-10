@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, Clock, Download, Plus, CheckCircle, AlertCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Clock, Download, Plus, CheckCircle, AlertCircle, CreditCard, Receipt } from 'lucide-react';
 import { useFinanceiro } from '@/hooks/useFinanceiro';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -83,6 +83,11 @@ export const FinanceiroPanel: React.FC = () => {
     saidas: f.total_saidas,
     saldo: f.saldo
   }));
+
+  // Calcular estatísticas adicionais
+  const totalEntradas = dadosFluxo.reduce((sum, d) => sum + d.entradas, 0);
+  const totalSaidas = dadosFluxo.reduce((sum, d) => sum + d.saidas, 0);
+  const saldoTotal = totalEntradas - totalSaidas;
 
   if (loading) {
     return (
@@ -171,9 +176,9 @@ export const FinanceiroPanel: React.FC = () => {
                 <YAxis tickFormatter={(value) => formatCurrency(value)} />
                 <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                 <Legend />
-                <Line type="monotone" dataKey="entradas" stroke="#10b981" strokeWidth={2} />
-                <Line type="monotone" dataKey="saidas" stroke="#ef4444" strokeWidth={2} />
-                <Line type="monotone" dataKey="saldo" stroke="#3b82f6" strokeWidth={2} />
+                <Line type="monotone" dataKey="entradas" stroke="hsl(var(--primary))" strokeWidth={2} name="Entradas" />
+                <Line type="monotone" dataKey="saidas" stroke="hsl(var(--destructive))" strokeWidth={2} name="Saídas" />
+                <Line type="monotone" dataKey="saldo" stroke="hsl(var(--accent))" strokeWidth={2} name="Saldo" />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -192,13 +197,106 @@ export const FinanceiroPanel: React.FC = () => {
                 <YAxis tickFormatter={(value) => formatCurrency(value)} />
                 <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                 <Legend />
-                <Bar dataKey="entradas" fill="#10b981" />
-                <Bar dataKey="saidas" fill="#ef4444" />
+                <Bar dataKey="entradas" fill="hsl(var(--primary))" name="Entradas" />
+                <Bar dataKey="saidas" fill="hsl(var(--destructive))" name="Saídas" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
+
+      {/* Lançamentos Financeiros */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Receipt className="w-5 h-5" />
+                Lançamentos Financeiros
+              </CardTitle>
+              <CardDescription>Histórico de entradas e saídas</CardDescription>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Select value={filtroStatus} onValueChange={setFiltroStatus}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="pendente">Pendente</SelectItem>
+                  <SelectItem value="confirmado">Confirmado</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                onClick={() => exportarCSV(pagamentos, 'pagamentos')}
+                variant="outline"
+                size="sm"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Exportar
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left p-2">Data</th>
+                    <th className="text-left p-2">Valor</th>
+                    <th className="text-left p-2">Método</th>
+                    <th className="text-left p-2">Status</th>
+                    <th className="text-left p-2">Parcela</th>
+                    <th className="text-left p-2">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagamentos.slice(0, 10).map((pagamento) => (
+                    <tr key={pagamento.id} className="hover:bg-muted/50 border-b">
+                      <td className="p-2">
+                        {format(parseISO(pagamento.created_at), 'dd/MM/yyyy')}
+                      </td>
+                      <td className="p-2 font-semibold">
+                        {formatCurrency(pagamento.valor_pago)}
+                      </td>
+                      <td className="p-2">{pagamento.metodo}</td>
+                      <td className="p-2">
+                        <Badge className={getStatusColor(pagamento.status)}>
+                          {pagamento.status}
+                        </Badge>
+                      </td>
+                      <td className="p-2">
+                        {pagamento.parcela_num}/{pagamento.total_parcelas}
+                      </td>
+                      <td className="p-2">
+                        {pagamento.status === 'pendente' && (
+                          <Button
+                            onClick={() => receberPagamento(pagamento.venda_id, pagamento.valor_pago)}
+                            size="sm"
+                            variant="outline"
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Confirmar
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {pagamentos.length === 0 && (
+              <div className="text-center py-8 text-muted-foreground">
+                <CreditCard className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhum pagamento registrado</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Pendentes Financeiros */}
       <Card>

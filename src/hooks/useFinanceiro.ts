@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface FluxoCaixa {
   mes: string;
@@ -50,6 +51,7 @@ export const useFinanceiro = () => {
   const [pagamentos, setPagamentos] = useState<Pagamento[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const fetchFluxoCaixa = async () => {
     const { data, error } = await supabase
@@ -139,7 +141,8 @@ export const useFinanceiro = () => {
         body: {
           evento: 'pagamento_confirmado',
           venda_id: vendaId,
-          valor: valor
+          valor: valor,
+          user_id: user?.id
         }
       });
 
@@ -177,7 +180,8 @@ export const useFinanceiro = () => {
           descricao: dados.descricao,
           categoria: dados.categoria,
           status: 'confirmado',
-          data_lancamento: new Date().toISOString().split('T')[0]
+          data_lancamento: new Date().toISOString().split('T')[0],
+          created_by: user?.id
         });
 
       if (error) throw error;
