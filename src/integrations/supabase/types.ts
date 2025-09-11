@@ -459,11 +459,16 @@ export type Database = {
       vw_pendentes_financeiros: {
         Row: {
           cliente_nome: string | null
+          data_pagamento: string | null
           data_vencimento: string | null
+          data_venda: string | null
+          forma_pagamento: string | null
           lancamento_status: string | null
+          numero_orcamento: string | null
           pagamento_status: string | null
           valor_total: number | null
           venda_id: string | null
+          venda_status: string | null
         }
         Relationships: []
       }
