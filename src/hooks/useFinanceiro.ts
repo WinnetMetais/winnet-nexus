@@ -2,47 +2,14 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import type { 
+  FluxoCaixa,
+  PendentesFinanceiros,
+  KPIsFinanceiros,
+  Pagamento
+} from '@/types';
 
-interface FluxoCaixa {
-  mes: string;
-  total_entradas: number;
-  total_saidas: number;
-  saldo: number;
-}
-
-interface PendentesFinanceiros {
-  venda_id: string;
-  valor_total: number;
-  venda_status: string;
-  pagamento_status: string;
-  forma_pagamento: string;
-  data_pagamento: string;
-  lancamento_status: string;
-  numero_orcamento: string;
-  cliente_nome: string;
-  data_venda: string;
-}
-
-interface KPIsFinanceiros {
-  entradas_mes_atual: number;
-  saidas_mes_atual: number;
-  vendas_pendentes: number;
-  pagamentos_pendentes: number;
-  total_entradas: number;
-  total_saidas: number;
-}
-
-interface Pagamento {
-  id: string;
-  venda_id: string;
-  valor_pago: number;
-  data_pagamento: string;
-  metodo: string;
-  status: string;
-  parcela_num: number;
-  total_parcelas: number;
-  created_at: string;
-}
+// Using types from shared types file now
 
 export const useFinanceiro = () => {
   const [fluxoCaixa, setFluxoCaixa] = useState<FluxoCaixa[]>([]);

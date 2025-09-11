@@ -175,18 +175,29 @@ export type Database = {
           created_at: string | null
           id: string
           mensagem: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string | null
           id?: string
           mensagem: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string | null
           id?: string
           mensagem?: string
+          user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notificacoes: {
         Row: {
@@ -448,15 +459,11 @@ export type Database = {
       vw_pendentes_financeiros: {
         Row: {
           cliente_nome: string | null
-          data_pagamento: string | null
-          data_venda: string | null
-          forma_pagamento: string | null
+          data_vencimento: string | null
           lancamento_status: string | null
-          numero_orcamento: string | null
           pagamento_status: string | null
           valor_total: number | null
           venda_id: string | null
-          venda_status: string | null
         }
         Relationships: []
       }
@@ -468,7 +475,10 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      status_lancamento: "pendente" | "confirmado" | "cancelado"
+      status_orcamento: "rascunho" | "enviado" | "aprovado" | "rejeitado"
+      status_pagamento: "pendente" | "confirmado" | "falhou"
+      status_venda: "pendente" | "confirmada" | "cancelada"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -595,6 +605,11 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      status_lancamento: ["pendente", "confirmado", "cancelado"],
+      status_orcamento: ["rascunho", "enviado", "aprovado", "rejeitado"],
+      status_pagamento: ["pendente", "confirmado", "falhou"],
+      status_venda: ["pendente", "confirmada", "cancelada"],
+    },
   },
 } as const

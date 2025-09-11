@@ -94,8 +94,39 @@ export interface Pagamento {
   created_at: string;
   updated_at: string;
   // Relations
-  venda?: Venda;
+  vendas?: Venda;
   creator?: Usuario;
+}
+
+// Financial view interfaces matching database views
+export interface FluxoCaixa {
+  mes: string;
+  total_entradas: number;
+  total_saidas: number;
+  saldo: number;
+}
+
+export interface PendentesFinanceiros {
+  venda_id: string;
+  valor_total: number;
+  venda_status: string;
+  pagamento_status: string;
+  forma_pagamento: string;
+  data_pagamento: string;
+  lancamento_status: string;
+  numero_orcamento: string;
+  cliente_nome: string;
+  data_venda: string;
+  data_vencimento?: string;
+}
+
+export interface KPIsFinanceiros {
+  entradas_mes_atual: number;
+  saidas_mes_atual: number;
+  vendas_pendentes: number;
+  pagamentos_pendentes: number;
+  total_entradas: number;
+  total_saidas: number;
 }
 
 export interface Usuario {

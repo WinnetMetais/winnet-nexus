@@ -52,6 +52,7 @@ import {
   useUsuarios,
   useNotificacoes 
 } from '@/hooks/useCRM';
+import { useFinanceiro } from '@/hooks/useFinanceiro';
 import { ClienteFormModal } from '@/components/ClienteFormModal';
 import { OrcamentoFormModal } from '@/components/OrcamentoFormModal';
 import { FinanceiroPanel } from '@/components/FinanceiroPanel';
