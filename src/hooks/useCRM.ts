@@ -668,27 +668,29 @@ export const useOrcamentos = () => {
 export const useVendas = () => {
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+  const { user } = useAuth();
+
+  const fetchVendas = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('vendas')
+        .select(`
+          *,
+          orcamentos(*, clientes(nome, email))
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setVendas(data || []);
+    } catch (error) {
+      console.error('Error fetching sales:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchVendas = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('vendas')
-          .select(`
-            *,
-            orcamentos(*, clientes(nome, email))
-          `)
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        setVendas(data || []);
-      } catch (error) {
-        console.error('Error fetching sales:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchVendas();
 
     const channel = supabase
@@ -706,7 +708,59 @@ export const useVendas = () => {
     };
   }, []);
 
-  return { vendas, loading };
+  const createVenda = async (vendaData: {
+    orcamento_id: string;
+    data_venda: string;
+    valor_total: number;
+    forma_pagamento: string;
+    status: string;
+  }) => {
+    if (!user) throw new Error('User not authenticated');
+
+    const { error } = await supabase
+      .from('vendas')
+      .insert([{
+        ...vendaData,
+        created_by: user.id
+      }]);
+
+    if (error) throw error;
+    await fetchVendas();
+  };
+
+  const updateVenda = async (id: string, updates: Partial<{
+    data_venda: string;
+    valor_total: number;
+    forma_pagamento: string;
+    status: string;
+  }>) => {
+    const { error } = await supabase
+      .from('vendas')
+      .update(updates)
+      .eq('id', id);
+
+    if (error) throw error;
+    await fetchVendas();
+  };
+
+  const deleteVenda = async (id: string) => {
+    const { error } = await supabase
+      .from('vendas')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    await fetchVendas();
+  };
+
+  return { 
+    vendas, 
+    loading, 
+    createVenda, 
+    updateVenda, 
+    deleteVenda,
+    refetch: fetchVendas 
+  };
 };
 
 // Hook para Lançamentos Financeiros

@@ -56,6 +56,7 @@ import { useFinanceiro } from '@/hooks/useFinanceiro';
 import { ClienteFormModal } from '@/components/ClienteFormModal';
 import { OrcamentoFormModal } from '@/components/OrcamentoFormModal';
 import { FinanceiroPanel } from '@/components/FinanceiroPanel';
+import { VendasPanel } from '@/components/VendasPanel';
 import { Navigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -829,7 +830,7 @@ const WinnetCRM: React.FC = () => {
               </motion.div>
             )}
 
-            {/* Vendas tab - placeholder */}
+            {/* Vendas tab */}
             {activeTab === 'vendas' && (
               <motion.div
                 key="vendas"
@@ -837,27 +838,7 @@ const WinnetCRM: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Vendas</CardTitle>
-                    <CardDescription>Esta seção está em desenvolvimento.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-12">
-                      <div className="text-4xl mb-4">🚧</div>
-                      <p className="text-muted-foreground">
-                        A seção vendas será implementada em breve.
-                      </p>
-                      <Button 
-                        variant="outline" 
-                        className="mt-4 hover-scale"
-                        onClick={() => setActiveTab('dashboard')}
-                      >
-                        Voltar ao Dashboard
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <VendasPanel />
               </motion.div>
             )}
 
