@@ -66,7 +66,7 @@ export const VendaFormModal = ({ isOpen, onClose, venda }: VendaFormModalProps) 
 
   // Filtrar apenas orçamentos aprovados que não têm venda associada
   const orcamentosDisponiveis = orcamentos.filter(orc => 
-    orc.status === 'aprovado' && (!venda || orc.id === venda.orcamento_id)
+    orc.status === 'aprovado' && orc.id && orc.id.trim() !== '' && (!venda || orc.id === venda.orcamento_id)
   );
 
   const form = useForm<VendaFormData>({
