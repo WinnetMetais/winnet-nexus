@@ -19,6 +19,7 @@ export type Database = {
           cep: string | null
           cidade: string | null
           created_at: string | null
+          created_by: string | null
           email: string
           empresa: string | null
           endereco: string | null
@@ -35,6 +36,7 @@ export type Database = {
           cep?: string | null
           cidade?: string | null
           created_at?: string | null
+          created_by?: string | null
           email: string
           empresa?: string | null
           endereco?: string | null
@@ -51,6 +53,7 @@ export type Database = {
           cep?: string | null
           cidade?: string | null
           created_at?: string | null
+          created_by?: string | null
           email?: string
           empresa?: string | null
           endereco?: string | null
@@ -474,6 +477,10 @@ export type Database = {
       }
     }
     Functions: {
+      current_uid: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: string
