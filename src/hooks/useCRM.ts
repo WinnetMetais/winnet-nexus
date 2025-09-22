@@ -910,11 +910,70 @@ export const useUsuarios = () => {
     }
   };
 
+  const criarUsuario = async (userData: { nome: string; email: string; role: string; password: string }) => {
+    try {
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: userData.email,
+        password: userData.password,
+        email_confirm: true,
+        user_metadata: {
+          nome: userData.nome
+        }
+      });
+
+      if (authError) throw authError;
+
+      if (!authData.user) {
+        throw new Error('Falha ao criar usuário na autenticação');
+      }
+
+      const { error: dbError } = await supabase
+        .from('usuarios')
+        .insert({
+          id: authData.user.id,
+          nome: userData.nome,
+          email: userData.email,
+          role: userData.role,
+          ativo: true
+        });
+
+      if (dbError) {
+        await supabase.auth.admin.deleteUser(authData.user.id);
+        throw dbError;
+      }
+
+      toast({
+        title: 'Usuário criado com sucesso!',
+        description: `${userData.nome} foi adicionado ao sistema.`,
+      });
+
+      return { success: true };
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      
+      let errorMessage = 'Erro desconhecido ao criar usuário';
+      if (error.message?.includes('duplicate key')) {
+        errorMessage = 'Este email já está cadastrado no sistema';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      toast({
+        title: 'Erro ao criar usuário',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+
+      return { success: false, error: errorMessage };
+    }
+  };
+
   return { 
     usuarios, 
     loading, 
     toggleAtivo, 
     atualizarUsuario, 
+    criarUsuario,
     canManageUsers 
   };
 };

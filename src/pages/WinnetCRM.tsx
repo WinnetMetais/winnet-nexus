@@ -55,8 +55,10 @@ import {
 import { useFinanceiro } from '@/hooks/useFinanceiro';
 import { ClienteFormModal } from '@/components/ClienteFormModal';
 import { OrcamentoFormModal } from '@/components/OrcamentoFormModal';
+import { VendaFormModal } from '@/components/VendaFormModal';
 import { FinanceiroPanel } from '@/components/FinanceiroPanel';
 import { VendasPanel } from '@/components/VendasPanel';
+import { UsuarioAdminModal } from '@/components/UsuarioAdminModal';
 import { Navigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -71,7 +73,7 @@ const WinnetCRM: React.FC = () => {
   const { orcamentos, loading: loadingOrcamentos, aprovarOrcamento, rejeitarOrcamento, adicionarOrcamento } = useOrcamentos();
   const { vendas, loading: loadingVendas } = useVendas();
   const { lancamentos, loading: loadingLancamentos } = useLancamentosFinanceiros();
-  const { usuarios, loading: loadingUsuarios, toggleAtivo, canManageUsers } = useUsuarios();
+  const { usuarios, loading: loadingUsuarios, toggleAtivo, criarUsuario, canManageUsers } = useUsuarios();
   const { notificacoes, unreadCount, marcarComoLida, marcarTodasComoLidas } = useNotificacoes(user?.id);
   
   // UI state
@@ -747,10 +749,15 @@ const WinnetCRM: React.FC = () => {
               >
                 <Card>
                   <CardHeader>
-                    <CardTitle>Usuários do Sistema</CardTitle>
-                    <CardDescription>
-                      Gerencie usuários e permissões • Apenas ADM_MASTER
-                    </CardDescription>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Usuários do Sistema</CardTitle>
+                        <CardDescription>
+                          Gerencie usuários e permissões • Apenas ADM_MASTER
+                        </CardDescription>
+                      </div>
+                      <UsuarioAdminModal onUsuarioCriado={() => window.location.reload()} />
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {loadingUsuarios ? (
