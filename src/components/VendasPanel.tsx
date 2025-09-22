@@ -240,7 +240,7 @@ export const VendasPanel = () => {
                 <SelectValue placeholder="Filtrar por status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Todos os status</SelectItem>
+                <SelectItem value="todos">Todos os status</SelectItem>
                 <SelectItem value="pendente">Pendente</SelectItem>
                 <SelectItem value="confirmada">Confirmada</SelectItem>
                 <SelectItem value="cancelada">Cancelada</SelectItem>
