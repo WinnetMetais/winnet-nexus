@@ -232,12 +232,6 @@ export const usePipelineComercial = () => {
 
       if (error) throw error;
 
-      // Chamar função do banco para atualizar pipeline
-      await supabase.rpc('fn_update_pipeline_stage', {
-        orcamento_id: orcamentoId,
-        new_stage: targetStageId
-      });
-
       toast({
         title: 'Sucesso',
         description: 'Orçamento movido no pipeline'
