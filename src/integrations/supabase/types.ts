@@ -431,6 +431,48 @@ export type Database = {
         }
         Relationships: []
       }
+      user_permissions: {
+        Row: {
+          can_admin: boolean | null
+          can_create: boolean | null
+          can_delete: boolean | null
+          can_read: boolean | null
+          can_update: boolean | null
+          created_at: string | null
+          id: string
+          permission_name: string
+          resource_type: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          can_admin?: boolean | null
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_read?: boolean | null
+          can_update?: boolean | null
+          created_at?: string | null
+          id?: string
+          permission_name: string
+          resource_type?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          can_admin?: boolean | null
+          can_create?: boolean | null
+          can_delete?: boolean | null
+          can_read?: boolean | null
+          can_update?: boolean | null
+          created_at?: string | null
+          id?: string
+          permission_name?: string
+          resource_type?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       usuarios: {
         Row: {
           ativo: boolean | null
@@ -580,6 +622,15 @@ export type Database = {
       fn_get_role: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      fn_has_permission: {
+        Args: {
+          p_action?: string
+          p_permission_name: string
+          p_resource_type?: string
+          p_user_id: string
+        }
+        Returns: boolean
       }
       fn_send_automatic_notification: {
         Args: {
