@@ -592,6 +592,10 @@ export type Database = {
         Args: { o_id: number; uid: string; usr_role: string } | { o_id: string }
         Returns: boolean
       }
+      create_admin_with_auth: {
+        Args: { admin_email: string; admin_name: string }
+        Returns: string
+      }
       create_notification: {
         Args: {
           entity_id?: string

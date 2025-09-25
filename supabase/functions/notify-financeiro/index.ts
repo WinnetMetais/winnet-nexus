@@ -94,9 +94,10 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Erro na function notify-financeiro:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error'
     return new Response(JSON.stringify({ 
       error: 'Erro interno do servidor',
-      details: error.message 
+      details: errorMessage 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 500
