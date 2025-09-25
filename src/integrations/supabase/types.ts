@@ -547,7 +547,7 @@ export type Database = {
     }
     Functions: {
       can_access_orcamento: {
-        Args: { o_id: number; uid: string; usr_role: string }
+        Args: { o_id: number; uid: string; usr_role: string } | { o_id: string }
         Returns: boolean
       }
       create_notification: {
@@ -565,6 +565,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      fn_calculate_discount: {
+        Args: { base_value: number; discount_percent: number }
+        Returns: number
+      }
       fn_can_access_orcamento: {
         Args: { o_id: string }
         Returns: boolean
@@ -576,6 +580,18 @@ export type Database = {
       fn_get_role: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      fn_send_automatic_notification: {
+        Args: {
+          notification_message: string
+          notification_type?: string
+          target_user_id: string
+        }
+        Returns: string
+      }
+      fn_update_pipeline_stage: {
+        Args: { new_stage: string; orcamento_id: string }
+        Returns: undefined
       }
       fn_validate_user_permissions: {
         Args: { required_roles: string[] }
