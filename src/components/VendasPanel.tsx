@@ -31,6 +31,7 @@ import { useToast } from '@/hooks/use-toast';
 
 import { useVendas } from '@/hooks/useCRM';
 import { useFinanceiro } from '@/hooks/useFinanceiro';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Venda } from '@/types';
 import { VendaFormModal } from './VendaFormModal';
 
@@ -38,6 +39,15 @@ export const VendasPanel = () => {
   const { toast } = useToast();
   const { vendas, loading: loadingVendas, deleteVenda } = useVendas();
   const { confirmarVenda, receberPagamento, loading: loadingFinanceiro } = useFinanceiro();
+  const { 
+    canCreateVenda, 
+    canEditVenda, 
+    canDeleteVenda: canDelete, 
+    canCloseSale, 
+    canAccessCommercialPipeline,
+    isAdmin,
+    isVendedor 
+  } = usePermissions();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -144,6 +154,28 @@ export const VendasPanel = () => {
     setIsModalOpen(true);
   };
 
+  // Verificar permissões de acesso
+  if (!canAccessCommercialPipeline() && !isAdmin()) {
+    return (
+      <Card>
+        <CardContent className="p-8">
+          <div className="text-center space-y-4">
+            <XCircle className="h-12 w-12 text-destructive mx-auto" />
+            <div>
+              <h3 className="text-lg font-semibold">Acesso Negado</h3>
+              <p className="text-muted-foreground">
+                Você não tem permissão para acessar o módulo de vendas.
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Entre em contato com o administrador do sistema.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (loadingVendas) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -208,18 +240,23 @@ export const VendasPanel = () => {
       {/* Controles */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <CardTitle>Gestão de Vendas</CardTitle>
-              <CardDescription>
-                Gerencie todas as vendas do sistema
-              </CardDescription>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <CardTitle>Gestão de Vendas</CardTitle>
+                <CardDescription>
+                  {isVendedor() 
+                    ? "Gerencie vendas e converta orçamentos aprovados"
+                    : "Gerencie todas as vendas do sistema"
+                  }
+                </CardDescription>
+              </div>
+              {canCreateVenda() && (
+                <Button onClick={handleNewVenda} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Nova Venda
+                </Button>
+              )}
             </div>
-            <Button onClick={handleNewVenda} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Nova Venda
-            </Button>
-          </div>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4 mb-6">
@@ -331,20 +368,23 @@ export const VendasPanel = () => {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleEditVenda(venda)}>
-                                  <Edit className="mr-2 h-4 w-4" />
-                                  Editar
-                                </DropdownMenuItem>
-                                {venda.status === 'pendente' && (
+                                {canEditVenda() && (
+                                  <DropdownMenuItem onClick={() => handleEditVenda(venda)}>
+                                    <Edit className="mr-2 h-4 w-4" />
+                                    Editar
+                                  </DropdownMenuItem>
+                                )}
+                                {venda.status === 'pendente' && canCloseSale() && (
                                   <DropdownMenuItem 
                                     onClick={() => handleConfirmarVenda(venda.id)}
                                     disabled={loadingFinanceiro}
+                                    className="text-green-600"
                                   >
                                     <CheckCircle className="mr-2 h-4 w-4" />
-                                    Confirmar Venda
+                                    Fechar Venda (Conversão)
                                   </DropdownMenuItem>
                                 )}
-                                {venda.status === 'confirmada' && (
+                                {venda.status === 'confirmada' && (isAdmin() || isVendedor()) && (
                                   <DropdownMenuItem 
                                     onClick={() => handleReceberPagamento(venda.id, Number(venda.valor_total))}
                                     disabled={loadingFinanceiro}
@@ -353,14 +393,18 @@ export const VendasPanel = () => {
                                     Receber Pagamento
                                   </DropdownMenuItem>
                                 )}
-                                <Separator />
-                                <DropdownMenuItem 
-                                  onClick={() => handleDeleteVenda(venda.id)}
-                                  className="text-destructive"
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" />
-                                  Excluir
-                                </DropdownMenuItem>
+                                {canDelete() && (
+                                  <>
+                                    <Separator />
+                                    <DropdownMenuItem 
+                                      onClick={() => handleDeleteVenda(venda.id)}
+                                      className="text-destructive"
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Excluir
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>

@@ -59,6 +59,8 @@ import { VendaFormModal } from '@/components/VendaFormModal';
 import { FinanceiroPanel } from '@/components/FinanceiroPanel';
 import { VendasPanel } from '@/components/VendasPanel';
 import { UsuarioAdminModal } from '@/components/UsuarioAdminModal';
+import { UserPermissionsSettings } from '@/components/UserPermissionsSettings';
+import { RolePermissionsBanner } from '@/components/RolePermissionsBanner';
 import { Navigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -418,6 +420,8 @@ const WinnetCRM: React.FC = () => {
 
         {/* Main Content Area */}
         <main className="flex-1 overflow-auto p-6">
+          <RolePermissionsBanner />
+          
           <AnimatePresence mode="wait">
             {activeTab === 'dashboard' && (
               <motion.div
@@ -747,93 +751,7 @@ const WinnetCRM: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle>Usuários do Sistema</CardTitle>
-                        <CardDescription>
-                          Gerencie usuários e permissões • Apenas ADM_MASTER
-                        </CardDescription>
-                      </div>
-                      <UsuarioAdminModal onUsuarioCriado={() => window.location.reload()} />
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {loadingUsuarios ? (
-                      <div className="flex items-center justify-center py-12">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                      </div>
-                    ) : usuarios.length > 0 ? (
-                      <div className="space-y-4">
-                        {usuarios.map((user) => (
-                          <motion.div 
-                            key={user.id} 
-                            className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-shadow"
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            whileHover={{ scale: 1.02 }}
-                          >
-                            <div className="flex items-center space-x-3">
-                              <Avatar className="h-10 w-10">
-                                <AvatarFallback className={cn(
-                                  "text-white",
-                                  user.ativo ? "bg-green-500" : "bg-gray-400"
-                                )}>
-                                  {user.nome.charAt(0)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <div>
-                                <div className="flex items-center space-x-2">
-                                  <h3 className="font-medium">{user.nome}</h3>
-                                  <Badge 
-                                    variant={
-                                      user.role === 'ADM_MASTER' ? 'default' :
-                                      user.role === 'VENDEDOR' ? 'secondary' : 'outline'
-                                    }
-                                    className="text-xs"
-                                  >
-                                    {user.role}
-                                  </Badge>
-                                </div>
-                                <p className="text-sm text-muted-foreground">{user.email}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  Criado em: {new Date(user.created_at).toLocaleDateString('pt-BR')}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <Button
-                                variant={user.ativo ? "outline" : "default"}
-                                size="sm"
-                                onClick={() => handleToggleUserStatus(user.id)}
-                                disabled={buttonLoading[user.id] || user.id === usuario?.id}
-                                className="hover-scale"
-                              >
-                                {buttonLoading[user.id] ? (
-                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                ) : user.ativo ? (
-                                  <UserX className="h-4 w-4 mr-2" />
-                                ) : (
-                                  <UserCheck className="h-4 w-4 mr-2" />
-                                )}
-                                {user.ativo ? 'Desativar' : 'Ativar'}
-                              </Button>
-                              <Button variant="ghost" size="sm" className="hover-scale">
-                                <Edit3 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-12">
-                        <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                        <p className="text-muted-foreground">Nenhum usuário encontrado</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                <UserPermissionsSettings currentUserRole={usuario?.role} />
               </motion.div>
             )}
 
@@ -861,37 +779,14 @@ const WinnetCRM: React.FC = () => {
               </motion.div>
             )}
 
-            {activeTab === 'configuracoes' && !canManageUsers && (
+            {activeTab === 'configuracoes' && (
               <motion.div
-                key="no-permission"
+                key="configuracoes"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Acesso Negado</CardTitle>
-                    <CardDescription>Você não tem permissão para acessar esta seção.</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-center py-12">
-                      <XCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-                      <p className="text-muted-foreground mb-2">
-                        Apenas usuários com perfil <Badge variant="outline">ADM_MASTER</Badge> podem gerenciar usuários.
-                      </p>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Seu perfil atual: <Badge variant="secondary">{usuario?.role}</Badge>
-                      </p>
-                      <Button 
-                        variant="outline" 
-                        className="hover-scale"
-                        onClick={() => setActiveTab('dashboard')}
-                      >
-                        Voltar ao Dashboard
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <UserPermissionsSettings currentUserRole={usuario?.role} />
               </motion.div>
             )}
           </AnimatePresence>
